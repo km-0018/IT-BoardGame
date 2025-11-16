@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ボードゲーム一覧</title>
+  <title>IT部ボードゲーム一覧</title>
   <style>
     .game-card {
       border: 1px solid #ccc;
@@ -23,7 +23,7 @@
 </head>
 <body>
 
-<h1>ボードゲーム一覧</h1>
+<h1>IT部ボードゲーム一覧</h1>
 <div id="list"></div>
 
 <script>
@@ -43,7 +43,6 @@ fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sh
       const [no, name, genre, summary, difficulty, players, time, link] =
         row.c.map(c => c ? c.v : "");
 
-      // 好きなHTMLで出力できる
       const card = document.createElement("div");
       card.className = "game-card";
       card.innerHTML = `

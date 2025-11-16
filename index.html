@@ -1,41 +1,67 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>ボードゲーム一覧</title>
-<style>
-  body { font-family: sans-serif; padding: 20px; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #ccc; padding: 8px; }
-  th { background: #eee; }
-</style>
+  <meta charset="UTF-8" />
+  <title>ボードゲーム一覧</title>
+  <style>
+    .game-card {
+      border: 1px solid #ccc;
+      padding: 12px;
+      margin: 10px;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    .title {
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    .genre {
+      color: #666;
+      margin-bottom: 6px;
+    }
+  </style>
 </head>
 <body>
 
 <h1>ボードゲーム一覧</h1>
-<table id="gameTable">
-  <thead id="thead"></thead>
-  <tbody id="tbody"></tbody>
-</table>
+<div id="list"></div>
 
 <script>
-const API_URL = "YOUR_GAS_API_URL_HERE"; // ←差し替え
+const sheetId = "1wwxgmxSW5MPJuh823423OUL0Nc9h5wWvvvfIbWWJhds";
+const sheetName = "IT部ボードゲーム一覧";
 
-fetch(API_URL)
-  .then(res => res.json())
-  .then(data => {
-    if (!data.length) return;
+fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${sheetName}`)
+  .then(res => res.text())
+  .then(text => {
+    // gvizの先頭と末尾を削る
+    const json = JSON.parse(text.substring(47, text.length - 2));
+    const rows = json.table.rows;
 
-    // ヘッダー
-    const headers = Object.keys(data[0]);
-    document.getElementById("thead").innerHTML =
-      "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
+    const list = document.getElementById("list");
 
-    // データ行
-    const rows = data.map(row =>
-      "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>"
-    );
-    document.getElementById("tbody").innerHTML = rows.join("");
+    rows.forEach(row => {
+      const [no, name, genre, summary, difficulty, players, time, link] =
+        row.c.map(c => c ? c.v : "");
+
+      // 好きなHTMLで出力できる
+      const card = document.createElement("div");
+      card.className = "game-card";
+      card.innerHTML = `
+        <div class="title">${name}</div>
+        <div class="genre">${genre}</div>
+        <div class="summary">${summary}</div>
+        <div><b>難易度:</b> ${difficulty}</div>
+        <div><b>人数:</b> ${players}</div>
+        <div><b>時間:</b> ${time}</div>
+        ${
+          link
+            ? `<div><a href="${link}" target="_blank">説明書リンク</a></div>`
+            : ""
+        }
+      `;
+
+      list.appendChild(card);
+    });
   });
 </script>
 

@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>IT部ボードゲーム一覧</title>
 
   <style>
@@ -51,22 +52,6 @@
       transform: translateY(-6px);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
     }
-
-    /* PC */
-    @media (min-width: 900px) {
-      .game-card {
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      }
-    }
-
-    /* スマホ */
-    @media (max-width: 899px) {
-      .game-card {
-        grid-template-columns: 1fr;
-      }
-    }
-
-
 
     /* =========================
        画像
@@ -169,6 +154,30 @@
       border: 1px solid #d1d5db;
       min-width: 220px;
     }
+
+    /* スマホ */
+    @media screen and (max-width: 480px) {
+      #list {
+        display: flex;
+        flex-direction: column;
+        padding: 0 12px 24px;
+      }
+
+      .game-card {
+        display: flex;
+        flex-direction: row;
+      }
+
+      .image {
+        width: 40%;
+        height: auto;
+      }
+
+      .description {
+        flex: 1;
+        padding: 12px;
+      }
+    }
   </style>
 </head>
 
@@ -186,8 +195,10 @@
       <option value="">並び替え</option>
       <option value="name">名前（A→Z）</option>
       <option value="difficulty">難易度</option>
-      <option value="players">人数</option>
-      <option value="time">時間</option>
+      <option value="min_players">最小人数</option>
+      <option value="max_players">最大人数</option>
+      <option value="min_time">最小時間</option>
+      <option value="max_time">最大時間</option>
     </select>
   </div>
 
@@ -209,13 +220,15 @@
 
         games = rows.map(row => {
           const [
-            no,
+            no ,
             name,
             genre,
             summary,
             difficulty,
-            players,
-            time,
+            min_players,
+            max_players,
+            min_time,
+            max_time,
             link,
             image
           ] = row.c.map(c => (c ? c.v : ""));
@@ -225,8 +238,10 @@
             genre,
             summary,
             difficulty,
-            players,
-            time,
+            min_players,
+            max_players,
+            min_time,
+            max_time,
             link,
             image
           };
@@ -253,8 +268,8 @@
             <div class="summary">${game.summary}</div>
             <div class="meta">
               <span class="badge">難易度: ${game.difficulty}</span>
-              <span class="badge">人数: ${game.players}</span>
-              <span class="badge">時間: ${game.time}</span>
+              <span class="badge">人数: ${game.min_players ? game.min_players : ""}～${game.max_players ? game.max_players : ""}人</span>
+              <span class="badge">時間: ${game.min_time ? game.min_time : ""}～${game.max_time ? game.max_time : ""}分</span>
             </div>
             ${
               game.link
@@ -293,12 +308,28 @@
         sorted.sort((a, b) => a.difficulty.localeCompare(b.difficulty));
       }
 
-      if (type === "players") {
-        sorted.sort((a, b) => a.players.localeCompare(b.players));
+      if (type === "min_players") {
+        sorted.sort((a, b) => 
+          (a.min_players === "" ? 0 : a.min_players) - 
+          (b_ = b.min_players === "" ? 0 : b.min_players));
       }
 
-      if (type === "time") {
-        sorted.sort((a, b) => a.time.localeCompare(b.time));
+      if (type === "max_players") {
+        sorted.sort((a, b) => 
+          (a.max_players === "" ? 9999 : a.max_players) - 
+          (b_ = b.max_players === "" ? 9999 : b.max_players));
+      }
+
+      if (type === "min_time") {
+        sorted.sort((a, b) => 
+          (a.min_time === "" ? 0 : a.min_time) - 
+          (b_ = b.min_time === "" ? 0 : b.min_time));
+      }
+
+      if (type === "max_time") {
+        sorted.sort((a, b) => 
+          (a.max_time === "" ? 9999 : a.max_time) - 
+          (b_ = b.max_time === "" ? 9999 : b.max_time));
       }
 
       render(sorted);

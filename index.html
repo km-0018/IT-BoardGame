@@ -3,76 +3,290 @@
 <head>
   <meta charset="UTF-8" />
   <title>IT部ボードゲーム一覧</title>
+
   <style>
+    :root {
+      --bg: #f4f6f8;
+      --card-bg: #ffffff;
+      --text-main: #1f2937;
+      --text-sub: #6b7280;
+      --accent: #2563eb;
+      --border-radius: 14px;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+
+    h1 {
+      text-align: center;
+      padding: 24px 12px;
+      margin: 0;
+    }
+
+    #list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+      padding: 0 20px 40px;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    /* =========================
+       カード
+    ========================= */
     .game-card {
-      border: 1px solid #ccc;
-      padding: 12px;
-      margin: 10px;
-      border-radius: 8px;
-      background: #fafafa;
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .title {
-      font-size: 1.2em;
-      font-weight: bold;
+
+    .game-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
     }
-    .genre {
-      color: #666;
-      margin-bottom: 6px;
+
+    /* =========================
+       画像
+    ========================= */
+    .image {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #e5e7eb;
+      overflow: hidden;
     }
-    .card {
+
+    .image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .no-image {
+      width: 100%;
+      height: 100%;
       display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+    }
+
+    /* =========================
+       内容
+    ========================= */
+    .description {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .title {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .genre {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+
+    .summary {
+      margin: 8px 0;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    /* メタ情報 */
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .badge {
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    a {
+      margin-top: 10px;
+      align-self: flex-start;
+      font-size: 0.85rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* =========================
+       フィルタUI
+    ========================= */
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .controls input,
+    .controls select {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      min-width: 220px;
     }
   </style>
 </head>
+
 <body>
+  <h1>🎲 IT部 ボードゲーム一覧</h1>
 
-<h1>IT部ボードゲーム一覧</h1>
-<div id="list"></div>
+  <div class="controls">
+    <input
+      type="text"
+      id="search"
+      placeholder="🔍 ゲーム名・ジャンル・説明で検索"
+    />
 
-<script>
-const sheetId = "1wwxgmxSW5MPJuh823423OUL0Nc9h5wWvvvfIbWWJhds";
-const sheetName = "IT部ボードゲーム一覧";
+    <select id="sort">
+      <option value="">並び替え</option>
+      <option value="name">名前（A→Z）</option>
+      <option value="difficulty">難易度</option>
+      <option value="players">人数</option>
+      <option value="time">時間</option>
+    </select>
+  </div>
 
-fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${sheetName}`)
-  .then(res => res.text())
-  .then(text => {
-    // gvizの先頭と末尾を削る
-    const json = JSON.parse(text.substring(47, text.length - 2));
-    const rows = json.table.rows;
+  <div id="list"></div>
 
-    const list = document.getElementById("list");
+  <script>
+    let games = [];
 
-    rows.forEach(row => {
-      const [no, name, genre, summary, difficulty, players, time, link, image] =
-        row.c.map(c => c ? c.v : "");
+    const sheetId = "1wwxgmxSW5MPJuh823423OUL0Nc9h5wWvvvfIbWWJhds";
+    const sheetName = "IT部ボードゲーム一覧";
 
-      const card = document.createElement("div");
-      card.className = "game-card";
-      card.innerHTML = `
-        <div class="card">
+    fetch(
+      `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${sheetName}`
+    )
+      .then(res => res.text())
+      .then(text => {
+        const json = JSON.parse(text.substring(47, text.length - 2));
+        const rows = json.table.rows;
+
+        games = rows.map(row => {
+          const [
+            no,
+            name,
+            genre,
+            summary,
+            difficulty,
+            players,
+            time,
+            link,
+            image
+          ] = row.c.map(c => (c ? c.v : ""));
+
+          return {
+            name,
+            genre,
+            summary,
+            difficulty,
+            players,
+            time,
+            link,
+            image
+          };
+        });
+
+        render(games);
+      });
+
+    function render(listData) {
+      const list = document.getElementById("list");
+      list.innerHTML = "";
+
+      listData.forEach(game => {
+        const card = document.createElement("div");
+        card.className = "game-card";
+
+        card.innerHTML = `
           <div class="image">
-            <image src="${image}" />
+            ${game.image ? `<img src="${game.image}" alt="${game.name}">`: `<div class="no-image">No Image</div>`}
           </div>
           <div class="description">
-            <div class="title">${name}</div>
-            <div class="genre">${genre}</div>
-            <div class="summary">${summary}</div>
-            <div><b>難易度:</b> ${difficulty}</div>
-            <div><b>人数:</b> ${players}</div>
-            <div><b>時間:</b> ${time}</div>
+            <div class="title">${game.name}</div>
+            <div class="genre">${game.genre}</div>
+            <div class="summary">${game.summary}</div>
+            <div class="meta">
+              <span class="badge">難易度: ${game.difficulty}</span>
+              <span class="badge">人数: ${game.players}</span>
+              <span class="badge">時間: ${game.time}</span>
+            </div>
             ${
-              link
-                ? `<div><a href="${link}" target="_blank">説明書リンク</a></div>`
+              game.link
+                ? `<a href="${game.link}" target="_blank">📖 説明書（外部）</a>`
                 : ""
             }
-            </div>
-        </div>
-      `;
+          </div>
+        `;
 
-      list.appendChild(card);
+        list.appendChild(card);
+      });
+    }
+
+    document.getElementById("search").addEventListener("input", e => {
+      const keyword = e.target.value.toLowerCase();
+
+      const filtered = games.filter(g =>
+        [g.name, g.genre, g.summary]
+          .join(" ")
+          .toLowerCase()
+          .includes(keyword)
+      );
+
+      render(filtered);
     });
-  });
-</script>
 
+    document.getElementById("sort").addEventListener("change", e => {
+      const type = e.target.value;
+      const sorted = [...games];
+
+      if (type === "name") {
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      if (type === "difficulty") {
+        sorted.sort((a, b) => a.difficulty.localeCompare(b.difficulty));
+      }
+
+      if (type === "players") {
+        sorted.sort((a, b) => a.players.localeCompare(b.players));
+      }
+
+      if (type === "time") {
+        sorted.sort((a, b) => a.time.localeCompare(b.time));
+      }
+
+      render(sorted);
+    });
+  </script>
 </body>
 </html>

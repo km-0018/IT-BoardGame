@@ -46,11 +46,27 @@
       overflow: hidden;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-
+    
     .game-card:hover {
       transform: translateY(-6px);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
     }
+
+    /* PC */
+    @media (min-width: 900px) {
+      .game-card {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      }
+    }
+
+    /* スマホ */
+    @media (max-width: 899px) {
+      .game-card {
+        grid-template-columns: 1fr;
+      }
+    }
+
+
 
     /* =========================
        画像

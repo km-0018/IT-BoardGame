@@ -155,8 +155,97 @@
       min-width: 220px;
     }
 
+    .controls input[type="number"] {
+      min-width: 0;
+      width: 120px;
+    }
+
+    .presets {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 0 12px 12px;
+    }
+
+    .presets button {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .presets button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .result-count {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin: 0 0 16px;
+    }
+
+    /* 選び方ガイド */
+    .guide {
+      max-width: 760px;
+      margin: 0 auto 16px;
+      padding: 0 12px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+
+    .guide details {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .guide summary {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .guide ul {
+      margin: 8px 0 0;
+      padding-left: 1.2em;
+    }
+
+    /* 会話の生まれやすさバッジ */
+    .badge.talk-3 { background: #dcfce7; color: #166534; }
+    .badge.talk-2 { background: #fef9c3; color: #854d0e; }
+    .badge.talk-1 { background: #f3f4f6; color: #4b5563; }
+    .badge.talk-0 { background: #f3f4f6; color: #9ca3af; }
+    .badge.first  { background: #dbeafe; color: #1e40af; font-weight: 600; }
+
+    .empty {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--text-sub);
+      padding: 40px 0;
+    }
+
     /* スマホ */
     @media screen and (max-width: 480px) {
+      .controls {
+        padding: 0 12px;
+      }
+
+      .controls input,
+      .controls select,
+      .controls input[type="number"] {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+
       #list {
         display: flex;
         flex-direction: column;
@@ -184,6 +273,18 @@
 <body>
   <h1>🎲 IT部 ボードゲーム一覧</h1>
 
+  <div class="guide">
+    <details>
+      <summary>📝 ゲームの選び方</summary>
+      <ul>
+        <li>最初のゲーム（〜13:20）は、アイスブレイクも兼ねて会話が生まれるもの（💬◎）を選ぶ</li>
+        <li>黙って考える時間が長い重いゲーム（💬△）は、2回目以降か、やりたい人がいるときに</li>
+        <li>1ゲームの目安は15〜30分。13:20の入れ替えに間に合うようにする</li>
+        <li>ルール説明は遊んだことのある人がする。いなければ運営が説明書を見ながら説明する</li>
+      </ul>
+    </details>
+  </div>
+
   <div class="controls">
     <input
       type="text"
@@ -191,9 +292,33 @@
       placeholder="🔍 ゲーム名・ジャンル・説明で検索"
     />
 
+    <input
+      type="number"
+      id="players"
+      min="1"
+      max="20"
+      placeholder="👥 人数"
+      aria-label="遊ぶ人数"
+    />
+
+    <select id="time" aria-label="時間">
+      <option value="">⏱ 時間：指定なし</option>
+      <option value="15">15分以内</option>
+      <option value="30">30分以内（13:20に間に合う）</option>
+      <option value="60">60分以内</option>
+    </select>
+
+    <select id="talk" aria-label="会話の生まれやすさ">
+      <option value="">💬 会話：指定なし</option>
+      <option value="3">◎ 会話がよく生まれる</option>
+      <option value="2">〇以上（会話あり）</option>
+      <option value="1-only">△ じっくり考える系</option>
+    </select>
+
     <select id="sort">
       <option value="">並び替え</option>
       <option value="name">名前（A→Z）</option>
+      <option value="talk">会話の生まれやすさ</option>
       <option value="difficulty">難易度</option>
       <option value="min_players">最小人数</option>
       <option value="max_players">最大人数</option>
@@ -201,6 +326,13 @@
       <option value="max_time">最大時間</option>
     </select>
   </div>
+
+  <div class="presets">
+    <button type="button" class="primary" id="preset-first">🧊 最初の1ゲーム向け（〜13:20）</button>
+    <button type="button" id="preset-reset">リセット</button>
+  </div>
+
+  <p class="result-count" id="count"></p>
 
   <div id="list"></div>
 
@@ -210,70 +342,134 @@
     const sheetId = "1wwxgmxSW5MPJuh823423OUL0Nc9h5wWvvvfIbWWJhds";
     const sheetName = "IT部ボードゲーム一覧";
 
+    // 会話の生まれやすさ（スプレッドシート L列）
+    //   ◎ … お題で話す・相談しながら推理・当てっこなど、自然に会話が生まれる
+    //   〇 … 会話はあるが、ゲームの操作や駆け引きが中心
+    //   △ … 黙って考える時間が長い
+    const TALK_LEVELS = { "◎": 3, "〇": 2, "○": 2, "△": 1 };
+    const TALK_LABELS = { 3: "◎", 2: "〇", 1: "△", 0: "未設定" };
+
+    // 「最初の1ゲーム」の条件：会話◎ かつ 30分以内で終わる
+    const FIRST_GAME_MAX_TIME = 30;
+
+    // "2人" / "15分" / 15 のどれでも数値にする（空なら null）
+    function toNumber(value) {
+      if (value === "" || value === null || value === undefined) return null;
+      const n = parseInt(String(value).replace(/[^0-9]/g, ""), 10);
+      return Number.isNaN(n) ? null : n;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // 遊び時間の上限（最長がなければ最短で代用）
+    function playTime(game) {
+      return game.max_time ?? game.min_time;
+    }
+
+    function isFirstGame(game) {
+      const t = playTime(game);
+      return game.talk === 3 && t !== null && t <= FIRST_GAME_MAX_TIME;
+    }
+
+    // headers=0 で全行をデータとして受け取り、見出し行・空行はここで除外する
     fetch(
-      `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${sheetName}`
+      `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0&sheet=${encodeURIComponent(sheetName)}`
     )
       .then(res => res.text())
       .then(text => {
-        const json = JSON.parse(text.substring(47, text.length - 2));
+        const json = JSON.parse(text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1));
         const rows = json.table.rows;
 
-        games = rows.map(row => {
-          const [
-            no ,
-            name,
-            genre,
-            summary,
-            difficulty,
-            min_players,
-            max_players,
-            min_time,
-            max_time,
-            link,
-            image
-          ] = row.c.map(c => (c ? c.v : ""));
+        games = rows
+          .map(row => {
+            const [
+              no,
+              name,
+              genre,
+              summary,
+              difficulty,
+              min_players,
+              max_players,
+              min_time,
+              max_time,
+              link,
+              image,
+              talk
+            ] = row.c.map(c => (c && c.v !== null ? c.v : ""));
 
-          return {
-            name,
-            genre,
-            summary,
-            difficulty,
-            min_players,
-            max_players,
-            min_time,
-            max_time,
-            link,
-            image
-          };
-        });
+            return {
+              name: String(name).trim(),
+              genre: String(genre),
+              summary: String(summary),
+              difficulty: String(difficulty),
+              min_players: toNumber(min_players),
+              max_players: toNumber(max_players),
+              min_time: toNumber(min_time),
+              max_time: toNumber(max_time),
+              link: String(link),
+              image: String(image),
+              talk: TALK_LEVELS[String(talk ?? "").trim()] ?? 0
+            };
+          })
+          .filter(g => g.name !== "" && g.name !== "ゲーム名");
 
-        render(games);
+        update();
+      })
+      .catch(err => {
+        console.error(err);
+        document.getElementById("list").innerHTML =
+          `<div class="empty">ゲーム一覧を読み込めませんでした</div>`;
       });
+
+    function range(min, max, unit) {
+      if (min === null && max === null) return "－";
+      if (min !== null && max !== null && min === max) return `${min}${unit}`;
+      return `${min ?? ""}～${max ?? ""}${unit}`;
+    }
 
     function render(listData) {
       const list = document.getElementById("list");
       list.innerHTML = "";
 
+      document.getElementById("count").textContent =
+        `${listData.length} / ${games.length} 件`;
+
+      if (listData.length === 0) {
+        list.innerHTML = `<div class="empty">条件に合うゲームがありません</div>`;
+        return;
+      }
+
       listData.forEach(game => {
         const card = document.createElement("div");
         card.className = "game-card";
 
+        const name = escapeHtml(game.name);
+
         card.innerHTML = `
           <div class="image">
-            ${game.image ? `<img src="${game.image}" alt="${game.name}">`: `<div class="no-image">No Image</div>`}
+            ${game.image ? `<img src="${escapeHtml(game.image)}" alt="${name}">` : `<div class="no-image">No Image</div>`}
           </div>
           <div class="description">
-            <div class="title">${game.name}</div>
-            <div class="genre">${game.genre}</div>
-            <div class="summary">${game.summary}</div>
+            <div class="title">${name}</div>
+            <div class="genre">${escapeHtml(game.genre)}</div>
+            <div class="summary">${escapeHtml(game.summary)}</div>
             <div class="meta">
-              <span class="badge">難易度: ${game.difficulty}</span>
-              <span class="badge">人数: ${game.min_players ? game.min_players : ""}～${game.max_players ? game.max_players : ""}人</span>
-              <span class="badge">時間: ${game.min_time ? game.min_time : ""}～${game.max_time ? game.max_time : ""}分</span>
+              ${isFirstGame(game) ? `<span class="badge first">🧊 最初の1ゲーム向け</span>` : ""}
+              <span class="badge talk-${game.talk}">💬 会話: ${TALK_LABELS[game.talk]}</span>
+              <span class="badge">👥 ${range(game.min_players, game.max_players, "人")}</span>
+              <span class="badge">⏱ ${range(game.min_time, game.max_time, "分")}</span>
+              <span class="badge">難易度: ${escapeHtml(game.difficulty) || "－"}</span>
             </div>
             ${
               game.link
-                ? `<a href="${game.link}" target="_blank">📖 説明書（外部）</a>`
+                ? `<a href="${escapeHtml(game.link)}" target="_blank" rel="noopener">📖 説明書（外部）</a>`
                 : ""
             }
           </div>
@@ -283,56 +479,84 @@
       });
     }
 
-    document.getElementById("search").addEventListener("input", e => {
-      const keyword = e.target.value.toLowerCase();
+    // 空欄は並び替えで末尾に回す
+    function byNumber(key, desc = false) {
+      return (a, b) => {
+        const x = a[key], y = b[key];
+        if (x === null && y === null) return 0;
+        if (x === null) return 1;
+        if (y === null) return -1;
+        return desc ? y - x : x - y;
+      };
+    }
 
-      const filtered = games.filter(g =>
-        [g.name, g.genre, g.summary]
-          .join(" ")
-          .toLowerCase()
-          .includes(keyword)
-      );
+    // 検索・フィルター・並び替えをまとめて適用する
+    function update() {
+      const keyword = document.getElementById("search").value.toLowerCase();
+      const players = toNumber(document.getElementById("players").value);
+      const maxTime = toNumber(document.getElementById("time").value);
+      const talk = document.getElementById("talk").value;
+      const sortType = document.getElementById("sort").value;
 
-      render(filtered);
+      let result = games.filter(g => {
+        if (keyword && ![g.name, g.genre, g.summary].join(" ").toLowerCase().includes(keyword)) {
+          return false;
+        }
+
+        // 人数：最小〜最大の範囲に入るもの（片方が空欄ならその側は制限なし）
+        if (players !== null) {
+          if (g.min_players !== null && players < g.min_players) return false;
+          if (g.max_players !== null && players > g.max_players) return false;
+        }
+
+        // 時間：遊び時間の上限が指定以内のもの（時間不明は除外）
+        if (maxTime !== null) {
+          const t = playTime(g);
+          if (t === null || t > maxTime) return false;
+        }
+
+        if (talk === "3" && g.talk !== 3) return false;
+        if (talk === "2" && g.talk < 2) return false;
+        if (talk === "1-only" && g.talk !== 1) return false;
+
+        return true;
+      });
+
+      const sorters = {
+        name: (a, b) => a.name.localeCompare(b.name, "ja"),
+        talk: byNumber("talk", true),
+        difficulty: (a, b) => a.difficulty.localeCompare(b.difficulty),
+        min_players: byNumber("min_players"),
+        max_players: byNumber("max_players"),
+        min_time: byNumber("min_time"),
+        max_time: byNumber("max_time")
+      };
+
+      if (sorters[sortType]) {
+        result = [...result].sort(sorters[sortType]);
+      }
+
+      render(result);
+    }
+
+    ["search", "players"].forEach(id =>
+      document.getElementById(id).addEventListener("input", update)
+    );
+    ["time", "talk", "sort"].forEach(id =>
+      document.getElementById(id).addEventListener("change", update)
+    );
+
+    document.getElementById("preset-first").addEventListener("click", () => {
+      document.getElementById("talk").value = "3";
+      document.getElementById("time").value = String(FIRST_GAME_MAX_TIME);
+      update();
     });
 
-    document.getElementById("sort").addEventListener("change", e => {
-      const type = e.target.value;
-      const sorted = [...games];
-
-      if (type === "name") {
-        sorted.sort((a, b) => a.name.localeCompare(b.name));
-      }
-
-      if (type === "difficulty") {
-        sorted.sort((a, b) => a.difficulty.localeCompare(b.difficulty));
-      }
-
-      if (type === "min_players") {
-        sorted.sort((a, b) => 
-          (a.min_players === "" ? 0 : a.min_players) - 
-          (b_ = b.min_players === "" ? 0 : b.min_players));
-      }
-
-      if (type === "max_players") {
-        sorted.sort((a, b) => 
-          (a.max_players === "" ? 9999 : a.max_players) - 
-          (b_ = b.max_players === "" ? 9999 : b.max_players));
-      }
-
-      if (type === "min_time") {
-        sorted.sort((a, b) => 
-          (a.min_time === "" ? 0 : a.min_time) - 
-          (b_ = b.min_time === "" ? 0 : b.min_time));
-      }
-
-      if (type === "max_time") {
-        sorted.sort((a, b) => 
-          (a.max_time === "" ? 9999 : a.max_time) - 
-          (b_ = b.max_time === "" ? 9999 : b.max_time));
-      }
-
-      render(sorted);
+    document.getElementById("preset-reset").addEventListener("click", () => {
+      ["search", "players", "time", "talk", "sort"].forEach(id => {
+        document.getElementById(id).value = "";
+      });
+      update();
     });
   </script>
 </body>
